@@ -1,0 +1,54 @@
+import os
+from nselib import capital_market
+from datetime import datetime, timedelta
+import pandas as pd
+from pandas.tseries.offsets import CustomBusinessDay
+import holidays
+
+# File path to store the data
+file_path = "bhavcopy_data.csv"
+
+# Setup Indian holidays
+in_holidays = holidays.India()
+business_days = CustomBusinessDay(holidays=in_holidays)
+
+# Today's date
+today = datetime.today().date()
+
+# Helper to fetch and return bhavcopy for a single date
+def fetch_bhavcopy(date):
+    date_str = date.strftime('%d-%m-%Y')
+    try:
+        df = capital_market.bhav_copy_with_delivery(date_str)
+        df["date"] = date  # Add proper date format
+        print(f"✅ Fetched data for {date_str}")
+        return df
+    except Exception as e:
+        print(f"❌ Skipped {date_str} due to error: {e}")
+        return pd.DataFrame()
+
+# Case 1: File already exists (append only missing data)
+if os.path.exists(file_path):
+    existing_data = pd.read_csv(file_path, parse_dates=["date"])
+    last_date = existing_data["date"].max().date()
+
+    # Check if today is a business day and newer than last saved
+    next_date = last_date + timedelta(days=1)
+    if next_date >= today:
+        print("📅 Data is already up-to-date.")
+    else:
+        # Generate next business days to fetch
+        new_dates = pd.date_range(start=next_date, end=today, freq=business_days)
+        new_data = pd.concat([fetch_bhavcopy(d) for d in new_dates], ignore_index=True)
+        updated_data = pd.concat([existing_data, new_data], ignore_index=True)
+        updated_data.to_csv(file_path, index=False)
+        print("📁 Data updated and saved.")
+else:
+    # Case 2: No existing data file, fetch last 60 business days
+    start = today - timedelta(days=2000)
+    date_range = pd.date_range(start=start, end=today, freq=business_days)
+    last_60_days = date_range[-2000:]  # Just 60 business days
+
+    full_data = pd.concat([fetch_bhavcopy(d) for d in last_60_days], ignore_index=True)
+    full_data.to_csv(file_path, index=False)
+    print("📁 Initial data saved.")
