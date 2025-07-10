@@ -25,5 +25,4 @@ jobs:
         pip install pandas holidays nselib schedule
 
     - name: Run scheduler script
-      run: |
-        python IndexDataScheduler.py
+      run: python .github/IndexDataScheduler.py
