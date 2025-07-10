@@ -26,4 +26,4 @@ jobs:
 
     - name: Run scheduler script
       run: |
-        IndexDataScheduler.py
+        python IndexDataScheduler.py
