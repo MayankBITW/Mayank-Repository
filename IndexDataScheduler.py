@@ -1,4 +1,4 @@
-pip install nselib
+#pip install nselib
 import os
 from datetime import datetime, timedelta, date
 import pandas as pd
