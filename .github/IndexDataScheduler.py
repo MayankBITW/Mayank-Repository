@@ -41,11 +41,11 @@ def fetch_and_save_index_data():
             combined = pd.concat(new_data)
             combined.to_csv(output_file, mode='a', header=not os.path.exists(output_file), index=False)
             print("✅ Data saved.")
-            send_email("Index Data Fetch Success", f"Successfully fetched and saved index data on {today}")
+            #send_email("Index Data Fetch Success", f"Successfully fetched and saved index data on {today}")
         else:
             print("⚠️ No new data.")
-            send_email("Index Data Fetch - No New Data", f"No data found for the run on {today}")
+            #send_email("Index Data Fetch - No New Data", f"No data found for the run on {today}")
 
     except Exception as e:
         print(f"❌ Error: {e}")
-        send_email("❌ Index Data Fetch Failed", f"An error occurred:\n\n{str(e)}")
+        #send_email("❌ Index Data Fetch Failed", f"An error occurred:\n\n{str(e)}")
