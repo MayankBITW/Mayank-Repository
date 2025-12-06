@@ -1,51 +1,82 @@
-#pip install nselib
+# pip install nselib pandas holidays schedule
+
 import os
-from datetime import datetime, timedelta, date
+import traceback
+from datetime import date, timedelta
 import pandas as pd
-from pandas.tseries.offsets import CustomBusinessDay
-import holidays
-import schedule
-import time
 from nselib import capital_market
+
+# ---------- CONFIG ----------
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+OUTPUT_FILE = os.path.join(BASE_DIR, "Index_Daily_Data.csv")
+LOG_FILE = os.path.join(BASE_DIR, "index_log.txt")
+# ----------------------------
+
+def log(msg):
+    with open(LOG_FILE, "a") as f:
+        f.write(msg + "\n")
+    print(msg)
 
 
 def fetch_and_save_index_data():
-    try:
-        output_file = "Index_Daily_data.csv"
-        in_holidays = holidays.India()
-        business_days = CustomBusinessDay(holidays=in_holidays)
 
+    log("----- Job Started -----")
+
+    try:
         first_date = date(2024, 1, 1)
         today = date.today()
         diff = (today - first_date).days
-        end = today
         start = today - timedelta(days=diff)
+        end = today
 
-        Indexlist = capital_market.fno_index_list()
-        Indexlist = Indexlist['underlying']
+        # Get index list
+        try:
+            Indexlist = capital_market.fno_index_list()['underlying']
+        except Exception as e:
+            log(f"Failed to fetch index list: {e}")
+            log(traceback.format_exc())
+            return
 
-        if os.path.exists(output_file):
-            pd.read_csv(output_file).iloc[0:0].to_csv(output_file, index=False)
-            print(f"Data deleted successfully: {output_file}")
+        # Reset file
+        if os.path.exists(OUTPUT_FILE):
+            os.remove(OUTPUT_FILE)
+            log("Old file deleted.")
 
         new_data = []
+
+        # Fetch data for each index
         for indexd in Indexlist:
             try:
-                df = capital_market.index_data(indexd, start.strftime("%d-%m-%Y"), end.strftime("%d-%m-%Y"))
-                new_data.append(df)
-                print(f"Fetched {start.strftime('%d-%m-%Y')} to {end.strftime('%d-%m-%Y')} for {indexd}")
-            except Exception as e:
-                print(f"No data for {indexd}: {e}")
+                df = capital_market.index_data(
+                    indexd,
+                    start.strftime("%d-%m-%Y"),
+                    end.strftime("%d-%m-%Y")
+                )
+                if df is not None and not df.empty:
+                    new_data.append(df)
+                    log(f"Fetched {indexd}")
+                else:
+                    log(f"No data for {indexd}")
 
+            except Exception as e:
+                log(f"Error fetching {indexd}: {e}")
+                log(traceback.format_exc())
+
+        # Save output
         if new_data:
             combined = pd.concat(new_data)
-            combined.to_csv(output_file, mode='a', header=not os.path.exists(output_file), index=False)
-            print("✅ Data saved.")
-            #send_email("Index Data Fetch Success", f"Successfully fetched and saved index data on {today}")
+            combined.to_csv(OUTPUT_FILE, index=False)
+            log("✔ Data saved successfully.")
         else:
-            print("⚠️ No new data.")
-            #send_email("Index Data Fetch - No New Data", f"No data found for the run on {today}")
+            log("⚠ No data fetched.")
 
     except Exception as e:
-        print(f"❌ Error: {e}")
-        #send_email("❌ Index Data Fetch Failed", f"An error occurred:\n\n{str(e)}")
+        log("❌ Fatal error in job.")
+        log(str(e))
+        log(traceback.format_exc())
+
+    log("----- Job Finished -----\n")
+
+
+if __name__ == "__main__":
+    fetch_and_save_index_data()
